@@ -1,0 +1,68 @@
+{
+  "exact_kernel_parity": true,
+  "scope": "CPU random weights and synthetic 128x8x8 radar tensor; not trained depth accuracy",
+  "outputs": {
+    "segment_False": {
+      "depth": {
+        "sha256": "48daab149de72da0ecae1d7f512ba15ef8c1f5a7b9d374571fca7a03f38c16cb",
+        "shape": [
+          1,
+          8,
+          8
+        ]
+      },
+      "prob_volume": {
+        "sha256": "2e628e9bb2d01e07ebbd13777f525812e6169251f9313ff11560884749d2d521",
+        "shape": [
+          1,
+          8,
+          8
+        ]
+      },
+      "segment_mask": null,
+      "std": {
+        "sha256": "f9f7f3b659b3794fe9900540fdd75f1392b0991c46328cdee63dba8396d35413",
+        "shape": [
+          1,
+          8,
+          8
+        ]
+      }
+    },
+    "segment_True": {
+      "depth": {
+        "sha256": "05a1347e976300b95c750af0763f1726116ecfc71e20f539e8cf1fce3dde4293",
+        "shape": [
+          1,
+          8,
+          8
+        ]
+      },
+      "prob_volume": {
+        "sha256": "1d9c5726de6779404b5a608601659772f983e1af72d6528f667bfdb420d44ddc",
+        "shape": [
+          1,
+          8,
+          8
+        ]
+      },
+      "segment_mask": {
+        "sha256": "a80d2ad49ce57ab903130637a830ca6814b4090e6836d204430603a525749128",
+        "shape": [
+          1,
+          2,
+          8,
+          8
+        ]
+      },
+      "std": {
+        "sha256": "5f6a2d04305f00cc97ad0ea2d0dd27d67552457b19b81af3f250e63836c25ad0",
+        "shape": [
+          1,
+          8,
+          8
+        ]
+      }
+    }
+  }
+}

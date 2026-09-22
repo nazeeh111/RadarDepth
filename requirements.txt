@@ -1,0 +1,6 @@
+open3d==0.19
+numpy
+tqdm
+spatialmath-python
+torch
+rerun-sdk
