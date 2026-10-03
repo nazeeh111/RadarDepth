@@ -1,6 +1,6 @@
 # RadarDepth
 
-**Development history:** Developed locally using Git before publication. These projects were published to GitHub together, so similar upload dates do not indicate when development began.
+This repository packages [Learned Depth Estimation of 3D Imaging Radar for Indoor Mapping](https://github.com/rpl-cmu/learned-depth-imaging-radar/tree/b2d3e4edd16b9d5b3c8765201494b97d857d8158), by **Ruoyang Xu, Wei Dong, Akash Sharma and Michael Kaess**, for the IROS 2022 learned radar-depth method. RadarDepth adds a command-line facade, source/CPU parity checks and setup documentation. The original methods, datasets and reported research results belong to the cited source. [Source and additions](NOTICE.md).
 
 **Imaging-radar measurements into cylindrical depth maps.**
 
