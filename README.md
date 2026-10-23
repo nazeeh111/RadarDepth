@@ -37,7 +37,14 @@ The full route needs **ColoRadar runs, the matching calibration and model weight
 python -m pip install -r requirements.txt matplotlib
 ```
 
-Follow the [dataset preparation guide](docs/REFERENCE.md#dataset) to convert the raw runs into `temp/` and `training_data/`. Training currently selects `run2` and tests on `run0`, `run1` and `run4` in [`train.py`](train.py), so prepare those runs. Paths below are placeholders for your converted dataset and checkpoint.
+The retained [dataset guide](docs/REFERENCE.md#dataset) explains the layouts, but its shell launcher currently only lists directories: the conversion commands inside it are commented out. Use the two Python conversion scripts explicitly. From `generate_dataset/`, for one run:
+
+```bash
+python raw_dataset_to_numpy.py -s PATH_TO_COLORADAR/RUN -c PATH_TO_COLORADAR/calib -o PATH_TO_TEMPORARY/run0
+python numpy_to_trainset.py -l PATH_TO_TEMPORARY/run0/raw/lidar -r PATH_TO_TEMPORARY/run0/raw/radar -m ../calib/radarMapping.npz -c ../calib/calibration.npz -o PATH_TO_TRAINING_DATA/run0 -lower 8 -upper 24
+```
+
+Use absolute paths for the `PATH_TO_...` placeholders, and repeat with the appropriate output run names. Training currently selects `run2` and tests on `run0`, `run1` and `run4` in [`train.py`](train.py), so prepare those runs consistently. These are source-derived commands; dataset conversion has not been freshly executed. Return to the repository root for training and evaluation:
 
 ```bash
 python radardepth.py train -d PATH_TO_TRAINING_DATA -o output -s true
