@@ -6,7 +6,7 @@ The retained IROS 2022 pipeline learns depth from ColoRadar measurements with Li
 
 <a id="pipeline"></a>
 
-<img src="assets/image.png" width="560" alt="Retained research illustration: two depth-image strips above an indoor radar and LiDAR point-cloud comparison, with radar in orange and LiDAR in blue.">
+<img src="assets/image.png" width="400" alt="Retained research illustration: two depth-image strips above an indoor radar and LiDAR point-cloud comparison, with radar in orange and LiDAR in blue.">
 
 *Retained illustration from Xu, Dong, Sharma and Kaess's research repository. Orange denotes radar geometry; blue denotes LiDAR. This is an upstream qualitative comparison, not a new evaluation run or an accuracy measurement by this edition.*
 
