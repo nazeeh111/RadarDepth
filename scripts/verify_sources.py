@@ -1,4 +1,4 @@
-"""Verify source syntax and unchanged numerical/firmware/media files."""
+"""Verify pinned original files and explicitly recorded numerical helper repairs."""
 import argparse
 import ast
 import hashlib
@@ -9,20 +9,32 @@ ROOT = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--baseline-dir", required=True, type=Path)
 args = parser.parse_args()
-checked = {}
+manifest_path = ROOT / "docs/source-verification.json"
+manifest = json.loads(manifest_path.read_text())
+amendment = json.loads((ROOT / "docs/intentional-source-changes.json").read_text())
+assert hashlib.sha256(manifest_path.read_bytes()).hexdigest() == amendment["historical_manifest_sha256"], "Historical source manifest changed"
+modified = amendment["modified_paths"]
+assert set(modified) == {"utils/radar.py", "utils/velocity.py"}, "Unexpected numerical amendment paths"
+unchanged = {}
+intentional = {}
 python_files = 0
-extensions = {".py", ".c", ".h", ".cpp", ".hpp", ".npz", ".png", ".gif", ".jpg", ".svg", ".csv", ".json", ".yaml", ".yml"}
-for source in sorted(args.baseline_dir.rglob("*")):
-    if not source.is_file() or source.suffix not in extensions:
-        continue
-    relative = source.relative_to(args.baseline_dir)
-    if ".git" in relative.parts:
-        continue
+for relative, original_hash in sorted(manifest["sha256"].items()):
+    source = args.baseline_dir / relative
     current = ROOT / relative
-    assert source.read_bytes() == current.read_bytes(), str(relative)
-    if source.suffix == ".py":
-        ast.parse(current.read_text(), filename=str(relative))
+    assert hashlib.sha256(source.read_bytes()).hexdigest() == original_hash, f"Baseline differs from pinned original: {relative}"
+    current_hash = hashlib.sha256(current.read_bytes()).hexdigest()
+    if relative in modified:
+        record = modified[relative]
+        assert record["original_sha256"] == original_hash, f"Original amendment hash differs: {relative}"
+        assert current_hash == record["current_sha256"], f"Unrecorded helper change: {relative}"
+        intentional[relative] = record
+    else:
+        assert current_hash == original_hash, f"Original file changed: {relative}"
+        unchanged[relative] = current_hash
+    if current.suffix == ".py":
+        ast.parse(current.read_text(), filename=relative)
         python_files += 1
-    checked[str(relative)] = hashlib.sha256(current.read_bytes()).hexdigest()
-assert checked, "No baseline files found"
-print(json.dumps({"unchanged_source_config_media_files": len(checked), "python_files_parsed": python_files, "sha256": checked}, indent=2))
+assert unchanged, "No original files checked"
+print(json.dumps({"unchanged_source_config_media_files": len(unchanged),
+                  "intentionally_modified_files": intentional,
+                  "python_files_parsed": python_files, "sha256": unchanged}, indent=2))

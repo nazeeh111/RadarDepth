@@ -15,8 +15,7 @@ def main(argv=None):
     root = Path(__file__).resolve().parent
     script = root / COMMANDS[args.command]
     # The existing entry point expects its documented working directory.
-    cwd = script.parent if args.command == "run" else root
-    return subprocess.call([sys.executable, str(script), *args.arguments], cwd=cwd)
+    return subprocess.call([sys.executable, str(script), *args.arguments], cwd=root)
 
 
 if __name__ == "__main__":

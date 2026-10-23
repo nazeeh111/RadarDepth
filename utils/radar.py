@@ -40,7 +40,11 @@ def colorize(intensity: np.ndarray, colormap='turbo'):
     # Note linear normalization might not be appropriate
     min_intensity = intensity.min()
     max_intensity = intensity.max()
-    normalized_intensity = (intensity - min_intensity) / max_intensity
+    intensity_range = max_intensity - min_intensity
+    if intensity_range == 0:
+        normalized_intensity = np.zeros_like(intensity, dtype=float)
+    else:
+        normalized_intensity = (intensity - min_intensity) / intensity_range
 
     if colormap == 'gray':
         return np.stack(

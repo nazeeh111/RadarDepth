@@ -1,0 +1,18 @@
+{
+  "baseline_revision": "c3830477a81ab8ae9446a23a7978ca6c09f28908",
+  "historical_manifest": "docs/source-verification.json",
+  "historical_manifest_sha256": "503a2cb0a93d0b97076aa36fd325e2db320ed406cca84a9ccaab898f1ab3f561",
+  "scope": "Intentional helper repairs; historical manifest retains original hashes. All other original paths must remain unchanged. Synthetic helper tests do not reproduce research accuracy.",
+  "modified_paths": {
+    "utils/velocity.py": {
+      "original_sha256": "386cbf7dff26ab96bd7da89c9fce83ba09de142667a0f3c317e62ba1934a7391",
+      "current_sha256": "3987e439fd0f9745c2df2b51d895d347b1d0093b07c7861655621e669ca0f766",
+      "intent": "Correct range-bin sampling and align Doppler/confidence with the existing projected nonzero-point mask."
+    },
+    "utils/radar.py": {
+      "original_sha256": "f955f4642dcc2c251e3285ea4e5323c0c587c35871e5dfc65d62026e52cd0d1b",
+      "current_sha256": "91e763583af2171bdce9e7bb9dcd4b755153ffd96c2906a0e5531232f21f2cc0",
+      "intent": "Normalize finite intensities by max-minus-min; map constant arrays to the lower palette endpoint."
+    }
+  }
+}

@@ -28,25 +28,19 @@ def depth_map_to_velocity_measurement(depth_map : np.ndarray,\
     (x, y, z, doppler_value, confidence)
     '''
 
-    (h, _) = depth_map.shape
-    lower_range = int(16 - h / 2)
     calib_data = np.load(calib_fname)
     range_unit = calib_data['range_bin_width']
 
-    e, a = np.nonzero(depth_map)
+    # Keep coordinates, Doppler and confidence on the same retained pixels.
+    points = radarimg2lidar(calib_fname, depth_map)
+    keep = np.bitwise_not(np.isclose(np.linalg.norm(points, axis=1), 0))
+    e, a = np.nonzero(keep.reshape(depth_map.shape))
     r = np.round(depth_map[e, a] / range_unit).astype(int)
-    r = np.clip(a, a_min=0, a_max=127)
-
-    # confidence = confidence_volume.flatten().reshape((-1, 1))
-    h, w = np.nonzero(confidence_volume)
-    confidence = confidence_volume[h, w].reshape((-1, 1))
-    # e = e + lower_range
+    r = np.clip(r, a_min=0, a_max=velocity_volume.shape[0] - 1)
 
     velocity_values = velocity_volume[r, e, a].reshape((-1, 1))
-
-    points = radarimg2lidar(calib_fname, depth_map)
-    points = filter_null_pts(points)
-    points = np.hstack((points, velocity_values, confidence))
+    confidence = confidence_volume[e, a].reshape((-1, 1))
+    points = np.hstack((points[keep], velocity_values, confidence))
 
     return points
 

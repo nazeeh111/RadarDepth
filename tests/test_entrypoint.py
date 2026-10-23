@@ -16,8 +16,7 @@ class EntrypointTests(unittest.TestCase):
                 self.assertEqual(entry.main([mode, *args]), 7)
                 self.assertEqual(call.call_args.args[0][2:], args)
                 self.assertEqual(Path(call.call_args.args[0][1]), ROOT / path)
-                expected = (ROOT / path).parent if mode == "run" else ROOT
-                self.assertEqual(call.call_args.kwargs["cwd"], expected)
+                self.assertEqual(call.call_args.kwargs["cwd"], ROOT)
 
 if __name__ == "__main__":
     unittest.main()
