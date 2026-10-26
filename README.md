@@ -2,13 +2,13 @@
 
 **From imaging radar to cylindrical depth maps and indoor geometry.**
 
-The retained IROS 2022 pipeline learns depth from ColoRadar measurements with LiDAR supervision. A learned visibility mask removes directions the radar cannot observe before the depth map is projected into geometry. RadarDepth adds a command-line entry point, setup guidance and bounded source/CPU checks to the [original research implementation](NOTICE.md).
+Learn depth from ColoRadar measurements with LiDAR supervision. A learned visibility mask removes directions the radar cannot observe before the depth map is projected into geometry.
 
 <a id="pipeline"></a>
 
 <img src="assets/image.png" width="400" alt="Retained research illustration: two depth-image strips above an indoor radar and LiDAR point-cloud comparison, with radar in orange and LiDAR in blue.">
 
-*Retained illustration from Xu, Dong, Sharma and Kaess's research repository. Orange denotes radar geometry; blue denotes LiDAR. This is an upstream qualitative comparison, not a new evaluation run or an accuracy measurement by this edition.*
+*Orange denotes radar geometry; blue denotes LiDAR. This retained qualitative comparison is not a new evaluation run or an accuracy measurement.*
 
 [Inspect without a dataset](#start-without-a-dataset) · [Prepare and run](#run-the-research-pipeline) · [Network source](networks/DepthRefinement/model.py) · [Research reference](docs/REFERENCE.md)
 
@@ -65,8 +65,6 @@ If help works but training fails on an import, help has only verified the depend
 
 <a id="source"></a>
 
-## Source and license
+## License
 
-Based on *Learned Depth Estimation of 3D Imaging Radar for Indoor Mapping* by **Ruoyang Xu, Wei Dong, Akash Sharma and Michael Kaess**, IROS 2022. [Original snapshot](https://github.com/rpl-cmu/learned-depth-imaging-radar/tree/b2d3e4edd16b9d5b3c8765201494b97d857d8158) · [Citation](docs/REFERENCE.md#about) · [Source and additions](NOTICE.md).
-
-The [project license](LICENSE) and [third-party notices](THIRD_PARTY_NOTICES.md) preserve the research and bundled ColoRadar-tool terms. Maintained by [nazeeh111](https://github.com/nazeeh111).
+The [project license](LICENSE) and [third-party notices](THIRD_PARTY_NOTICES.md) cover the research source and bundled ColoRadar tools. [Source provenance](NOTICE.md).
