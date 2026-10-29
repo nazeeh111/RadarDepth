@@ -14,6 +14,16 @@ random_seed = 10
 from networks.DepthRefinement.model import DRNet3D, huber_loss, DEPTH_VAL
 from dataloader.dataset import Dataset
 
+def parse_bool(value):
+    """Keep legacy -c True/False syntax without bool('False') selecting CUDA."""
+    normalized = value.strip().lower()
+    if normalized in {'true', '1', 'yes', 'on'}:
+        return True
+    if normalized in {'false', '0', 'no', 'off'}:
+        return False
+    raise argparse.ArgumentTypeError('expected true/false (or1/0, yes/no, on/off)')
+
+
 def prepare_dataset(path : PathLike, bs : int, split : float, shuffle : bool):
     '''
     Return torch type dataset from path with split train and test
@@ -134,7 +144,7 @@ def train(model : torch.nn.Module, optim : torch.optim.Optimizer, \
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Training Script")
     parser.add_argument('-d', '--dataset_directory', type=str, help='directory of dataset', required=True)
-    parser.add_argument('-c', '--cuda', type=bool, default=True, help='cuda')
+    parser.add_argument('-c', '--cuda', type=parse_bool, default=True, help='Use CUDA if available (true/false, default true)')
     parser.add_argument('-b', '--batch_size', type=int, default=8, help='Batch size')
     parser.add_argument('-e', '--epoch', type=int, default=100, help='epoch number')
     parser.add_argument('-o', '--output', type=str, help='model output directory')

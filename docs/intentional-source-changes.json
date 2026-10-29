@@ -41,8 +41,8 @@
     },
     "train.py": {
       "original_sha256": "be6595d74115e1700d993978909d1c25a76f1393f5ddfe6040bd4316b2cefe45",
-      "current_sha256": "e5a8015b3919e3964de2a46b6cb1b4a75c6bfceffa8596303033bf175c9de1c9",
-      "intent": "Use supplied optimizer; isolate train/eval modes, sample-weight metrics, keep evaluation remainder and support headless loss plotting."
+      "current_sha256": "47aedf778251dbad9195c93e0c14538c72a0f660ed5f9765764c950a3de1e9c8",
+      "intent": "Use supplied optimizer; isolate train/eval modes, sample-weight metrics, keep evaluation remainder and support headless loss plotting. Parse explicit CUDA false correctly without changing default or automatic hardware fallback."
     },
     "eval.py": {
       "original_sha256": "5d2fcc756b5dd8f39fe67b75456ef157eee5e48b251f1e12d7a6a9204f6ef540",

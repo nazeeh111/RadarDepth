@@ -147,3 +147,13 @@ be replaced. This establishes software train/save/load/infer/depth/geometry
 execution. The one-update synthetic checkpoint is strictly a test artifact, not
 a trained research checkpoint or a learned-accuracy demonstration. Measured
 ColoRadar evaluation and licensed compatible trained weights remain external gates.
+
+
+The retained `train -c/--cuda True/False` syntax now parses explicit false as
+false rather than Python's truthy nonempty string. The default remains true and
+still falls back to CPU when CUDA is unavailable. True/false are case-insensitive;
+1/0, yes/no and on/off are explicit aliases; unsupported strings fail during
+argument parsing. The standalone parser contract test executes the actual argument
+declaration without loading Torch or selecting hardware. It is control evidence,
+not a GPU or learning-quality test. Fixed session splits and archived batch-shell
+mapping remain unchanged and documented above.
