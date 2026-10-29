@@ -17,5 +17,9 @@ class ConvBnReLU3D(nn.Module):
         return F.relu(self.bn(self.conv(x)), inplace=True)
 
 def huber_loss(depth_est, depth_gt):
-    mask = depth_gt < R_WIDTH * 128
-    return F.smooth_l1_loss(depth_est[mask], depth_gt[mask], size_average=True)
+    mask = torch.isfinite(depth_gt) & (depth_gt > 0) & (depth_gt < R_WIDTH * 128)
+    if not torch.any(mask):
+        # No observed depth contributes no depth gradient. Segmentation can
+        # still learn the invalid-return class through the enclosing loss.
+        return depth_est.sum() * 0
+    return F.smooth_l1_loss(depth_est[mask], depth_gt[mask], reduction='mean')

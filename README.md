@@ -35,8 +35,8 @@ estimation or a real radar measurement.**
 
 [Reproduction contracts and remaining gates](docs/REPRODUCIBILITY.md) distinguish
 this working numerical subset, CPU network training tests, and unavailable trained
-inference. With only NumPy installed, two optional Torch tests are explicitly
-skipped. The separate CPU CI job runs those tests using the actual DRNet3D network.
+inference. With only NumPy installed, optional Torch tests are explicitly skipped. The separate
+CPU CI job runs actual DRNet3D training and checkpoint-to-geometry tests.
 
 <a id="set-up"></a>
 
@@ -59,10 +59,10 @@ Use absolute paths for the `PATH_TO_...` placeholders, and repeat with the appro
 
 ```bash
 python radardepth.py train -d PATH_TO_TRAINING_DATA -o output -s true
-python radardepth.py evaluate -m MODEL_PATH -c calib/radarMapping.npz -r calib/calibration.npz -d PATH_TO_TRAINING_DATA/run0 -l PATH_TO_TEMPORARY/run0/raw/lidar/
+python radardepth.py evaluate -m MODEL_PATH -c PATH_TO_TEMPORARY/run0/calib/radarMapping.npz -d PATH_TO_TRAINING_DATA/run0 -o evaluation-run0 --max-frames 10
 ```
 
-`-s true` enables the segmentation branch and is required by the retained training parser. `train` forwards to [`train.py`](train.py); `evaluate` forwards to [`eval.py`](eval.py). Evaluation opens a Rerun viewer comparing predicted radar geometry, LiDAR labels and raw LiDAR points. The full measured-data and trained-checkpoint route has not been reproduced. The training loop is tested separately with original synthetic tensors; this does not establish learned accuracy.
+`-s true` enables the segmentation branch and is required by the retained training parser. `train` forwards to [`train.py`](train.py); `evaluate` forwards to [`eval.py`](eval.py). Evaluation runs headlessly on CPU and writes unmasked/masked depth, validity probabilities, selected points in PLY, per-frame metrics and a checkpoint/calibration digest manifest. Existing output directories are refused. Add `--viewer` to explicitly open the optional Rerun viewer; raw LiDAR comparison additionally needs `-r` and `-l`, paired by numeric frame stem. Install CPU Torch separately with `python -m pip install torch==2.15.0 --index-url https://download.pytorch.org/whl/cpu`; headless inference needs NumPy and Torch, not Open3D or Rerun. The full measured-data and trained-checkpoint route has not been reproduced. The training loop is tested separately with original synthetic tensors; this does not establish learned accuracy.
 
 | To inspect | Open |
 | --- | --- |

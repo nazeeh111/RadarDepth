@@ -16,8 +16,8 @@
     },
     "dataloader/dataset.py": {
       "original_sha256": "ef141178a09e750cdbf731f008bc002e1d73133c2670bbbd354f4ac43995962c",
-      "current_sha256": "da7a0e981ab432d8b8c4da25e2084215fda31bae949d051655e043f689ead774",
-      "intent": "Reject equal-count mismatched or empty paired frame lists; disable pickle loading."
+      "current_sha256": "765078251344eed1893340c4216195365a290f245e32a8cfeda16ecbe614952f",
+      "intent": "Reject equal-count mismatched or empty paired frames; disable pickle; make valid/invalid masks complementary using finite positive in-range depth labels."
     },
     "generate_dataset/numpy_to_trainset.py": {
       "original_sha256": "0f0ae0980453acf4344a77fc80c79a144e839a1e930847fbff3c6155ace91a73",
@@ -43,6 +43,16 @@
       "original_sha256": "be6595d74115e1700d993978909d1c25a76f1393f5ddfe6040bd4316b2cefe45",
       "current_sha256": "e5a8015b3919e3964de2a46b6cb1b4a75c6bfceffa8596303033bf175c9de1c9",
       "intent": "Use supplied optimizer; isolate train/eval modes, sample-weight metrics, keep evaluation remainder and support headless loss plotting."
+    },
+    "eval.py": {
+      "original_sha256": "5d2fcc756b5dd8f39fe67b75456ef157eee5e48b251f1e12d7a6a9204f6ef540",
+      "current_sha256": "52f181ab10b6ce50610cf36ad23a16564aafb0d7b785a3f2b7146d8f43c5edd6",
+      "intent": "Headless safe state_dict CPU evaluation, explicit optional viewer, paired raw frames, saved arrays/PLY and unmasked error metrics; preserve original two-class Softmax."
+    },
+    "networks/DepthRefinement/network_parts.py": {
+      "original_sha256": "06aa38c29c7eb25293e312e3d131a508bec4fea9a4d94e139c4966274fb1f054",
+      "current_sha256": "d19bc221adf6b89d1535b1c285550ab0832f8357b583305a24663da474e6bf49",
+      "intent": "Reject invalid depth labels and return differentiable zero when no valid depth observation exists, avoiding NaN without changing network architecture."
     }
   }
 }

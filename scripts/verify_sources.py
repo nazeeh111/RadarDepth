@@ -17,7 +17,8 @@ modified = amendment["modified_paths"]
 assert set(modified) == {
     "utils/radar.py", "utils/velocity.py", "utils/pairing.py", "utils/__init__.py",
     "dataloader/dataset.py", "generate_dataset/numpy_to_trainset.py",
-    "generate_dataset/raw_dataset_to_numpy.py", "train.py",
+    "generate_dataset/raw_dataset_to_numpy.py", "train.py", "eval.py",
+    "networks/DepthRefinement/network_parts.py",
 }, "Unexpected source amendment paths"
 unchanged = {}
 intentional = {}

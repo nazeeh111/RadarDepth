@@ -94,3 +94,56 @@ scalar nearest-return projector and analytic spherical xyz. No inference engine 
 mocked. Raw-ingestion timestamp tests use an original synthetic loader fixture;
 they do not verify a downloaded ColoRadar run. Old source and kernel manifests
 remain historical records, with explicit source amendments for repaired files.
+
+
+## Checkpoint evaluation and geometry (follow-up)
+
+The previous eval script imported unused Open3D and an always-started viewer
+before parsing arguments and saved no numerical result. The headless route now
+loads a strict `train.py` state_dict with `weights_only=True` and CPU map location,
+uses the existing double-precision evaluation convention, restores caller model
+mode after inference, and avoids autograd/BatchNorm updates. CPU threads default
+to one and can be chosen with `--threads`. No device, sensor or viewer is opened
+without an explicit viewer request. Rerun is optional; it is not imported by the
+headless path. A compatible non-segmented checkpoint is also supported.
+
+An early source hypothesis that segmentation was a singleton class was false:
+actual128range input produces two logits. The original valid/invalid class
+Softmax and0.4 threshold are preserved. Input/channel/calibration contracts are
+checked rather than silently reshaped. Nonfinite, nonmonotonic or out-of-radian
+angle bins and incompatible fixed range-bin widths are rejected before output
+creation. The bundled width differs from the nominal constant by8.2e-8relative;
+the explicit compatibility tolerance is1e-6relative plus1e-9metres absolute. The supported output grid is16x128;
+invalid dimensional contracts fail clearly. The broken no-valid-depth training
+loss now yields a differentiable zero depth contribution instead ofNaN;
+segmentation still learns from the invalid-return label. Negative, zero and
+nonfinite labels do not contribute to depth loss; dataset valid/invalid targets
+remain complementary for those observations.
+
+```
+python -m pip install -r requirements-geometry.txt
+python -m pip install torch==2.15.0 --index-url https://download.pytorch.org/whl/cpu
+python radardepth.py evaluate -m MODEL_STATE_DICT.pth -c RUN/calib/radarMapping.npz -d CONVERTED_RUN -o result-new --max-frames 10
+python -m unittest discover -s tests -p test_evaluation.py -v
+```
+
+Each frame writes NPZ arrays (`depth_m`, `masked_depth_m`,
+`validity_probability`, `selected_mask`, `label_depth_m`) and radar-frame
+metre PLY coordinates. `evaluation.json` records per-frame time, label counts,
+MAE/RMSE, segmentation confusion, per-frame input/output, checkpoint/calibration digests and
+versions. Depth metrics use every valid observed label before prediction masking,
+so rejecting a difficult pixel cannot improve the depth error metric. Missing
+labels produce null depth metrics, not fabricated zeros. No artificial10Hz wall
+clock is logged; the optional viewer uses frame index only. Supplying raw LiDAR
+uses explicit numeric-stem pairing, including converted filename zero padding,
+instead of assuming the order of two independent directory listings.
+
+The new integration test performs a real small synthetic gradient update, saves
+that resulting state_dict, then calls the public evaluate command from an
+unrelated working directory on a full128x16x128 input. It recomputes changed-input
+outputs, compares PLY coordinates to an independent spherical formula and metrics
+to independently calculated unmasked errors, and verifies previous outputs cannot
+be replaced. This establishes software train/save/load/infer/depth/geometry
+execution. The one-update synthetic checkpoint is strictly a test artifact, not
+a trained research checkpoint or a learned-accuracy demonstration. Measured
+ColoRadar evaluation and licensed compatible trained weights remain external gates.

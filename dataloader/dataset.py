@@ -43,8 +43,9 @@ class Dataset(torch.utils.data.Dataset):
         radar = np.load(self.radar_fnames[index], allow_pickle=False)
         lidar = np.load(self.lidar_fnames[index], allow_pickle=False)
 
-        lidar_true_mask =  np.expand_dims(lidar < 0.0592944 * 128, axis=0)
-        lidar_false_mask = np.expand_dims(lidar > 0.0592944 * 128, axis=0)
+        observed = np.isfinite(lidar) & (lidar > 0) & (lidar < 0.0592944 * 128)
+        lidar_true_mask = np.expand_dims(observed, axis=0)
+        lidar_false_mask = np.expand_dims(~observed, axis=0)
         lidar_mask = np.concatenate((lidar_true_mask, lidar_false_mask))
 
         return {
