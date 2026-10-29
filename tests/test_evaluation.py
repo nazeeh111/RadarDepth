@@ -24,6 +24,8 @@ class EvaluationTests(unittest.TestCase):
         from eval import infer_frame
         from networks.DepthRefinement.model import DRNet3D, DEPTH_VAL
         model = DRNet3D(DEPTH_VAL).double().train()
+        model.cost_regularization.conv0.bn.eval()
+        original_modes = {name:module.training for name,module in model.named_modules()}
         radar = np.random.default_rng(16).normal(size=(128,8,8))
         before = {k:v.clone() for k,v in model.named_buffers()}
         observed=[]
@@ -32,6 +34,7 @@ class EvaluationTests(unittest.TestCase):
         handle.remove()
         self.assertEqual(observed,[(False,False,True)])
         self.assertTrue(model.training)
+        self.assertEqual({name:module.training for name,module in model.named_modules()},original_modes)
         for name,value in model.named_buffers(): torch.testing.assert_close(value,before[name],rtol=0,atol=0)
         model.eval()
         with torch.inference_mode(): result=model(torch.as_tensor(radar).unsqueeze(0).unsqueeze(0))

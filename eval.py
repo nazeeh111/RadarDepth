@@ -57,7 +57,7 @@ def infer_frame(model, radar, threshold=0.4):
     if parameter.device.type != 'cpu':
         raise ValueError('Headless evaluation currently supports CPU models')
     sample = torch.as_tensor(radar, dtype=parameter.dtype).unsqueeze(0).unsqueeze(0)
-    was_training = model.training
+    training_modes = [(module, module.training) for module in model.modules()]
     started = time.perf_counter()
     try:
         model.eval()
@@ -73,7 +73,10 @@ def infer_frame(model, radar, threshold=0.4):
                 # Training uses two binary target channels, valid then invalid.
                 probability = torch.softmax(logits, dim=1)[0, 0].cpu().numpy().copy()
     finally:
-        model.train(was_training)
+        # Calling model.train(previous_top_level) would unfreeze a child whose
+        # BatchNorm/dropout mode was intentionally set independently.
+        for module, was_training in training_modes:
+            module.training = was_training
     if depth.shape != radar.shape[1:] or not np.isfinite(depth).all() or not np.isfinite(probability).all():
         raise ValueError('Model produced invalid depth/probability arrays')
     selected = (probability >= threshold) & (depth > 0)
