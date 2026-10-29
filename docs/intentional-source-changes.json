@@ -46,7 +46,7 @@
     },
     "eval.py": {
       "original_sha256": "5d2fcc756b5dd8f39fe67b75456ef157eee5e48b251f1e12d7a6a9204f6ef540",
-      "current_sha256": "6b8e15fa828837532b610b54704b673a4ee3961ffad262cf86a10193c76f29db",
+      "current_sha256": "225a6b28ac3c826efb14904e0b0996fb64d73ec0150f2fb61474115639176143",
       "intent": "Headless safe state_dict CPU evaluation, explicit optional viewer, paired raw frames, saved arrays/PLY and unmasked error metrics; preserve original two-class Softmax."
     },
     "networks/DepthRefinement/network_parts.py": {

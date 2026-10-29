@@ -113,6 +113,15 @@ class EvaluationTests(unittest.TestCase):
                     output=root/f'out{index}'
                     with self.assertRaises(ValueError):process_dataset(model,dataset,path,output_dir=output)
                     self.assertFalse(output.exists())
+            np.savez(root/'radar/000.npz',intensity=np.zeros((128,8,8)),velocity=np.zeros((128,8,8)))
+            calls=[]
+            handle=model.register_forward_pre_hook(lambda module,args:calls.append(True))
+            try:
+                with self.assertRaisesRegex(ValueError,'calibrated angular grid'):
+                    process_dataset(model,dataset,ROOT/'calib/radarMapping.npz',output_dir=root/'wrong-frame')
+            finally:handle.remove()
+            self.assertEqual(calls,[])
+            self.assertFalse((root/'wrong-frame').exists())
             np.save(root/'lidar/000.npy',np.array([[2.,0.,-1.],[np.nan,10.,8.]]))
             masks=dataset[0]['lidar_mask']
             np.testing.assert_array_equal(masks[0],[[True,False,False],[False,False,False]])

@@ -137,8 +137,8 @@ def process_dataset(model, dataset, radar_calib_npz, corresponding_lidar_pts=Non
                 or not (np.all(np.diff(angles) > 0) or np.all(np.diff(angles) < 0))):
             raise ValueError(f'Calibration {name} bins must be finite strictly monotonic radians')
     destination = Path(output_dir) if output_dir is not None else None
-    if destination is not None:
-        destination.mkdir(parents=True, exist_ok=False)
+    if destination is not None and (destination.exists() or destination.is_symlink()):
+        raise FileExistsError(f'File exists: {destination}')
     if viewer:
         import rerun as rr
         rr.init('PCD Comparison')
@@ -146,6 +146,13 @@ def process_dataset(model, dataset, radar_calib_npz, corresponding_lidar_pts=Non
     records = []
     for index in range(count):
         data = dataset[index]
+        if np.shape(data['radar']) != (128, *expected_shape):
+            raise ValueError('Dataset radar shape must match 128 range bins and the calibrated angular grid')
+        label = np.asarray(data['lidar'])
+        if label.dtype.kind not in 'buif' or label.shape != expected_shape or not np.isfinite(label).all():
+            raise ValueError('Dataset labels must be finite and match the calibrated angular grid')
+        if destination is not None and index == 0:
+            destination.mkdir(parents=True, exist_ok=False)
         input_paths = (Path(dataset.radar_fnames[index]), Path(dataset.lidar_fnames[index]))
         input_hashes = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in input_paths}
         depth, probability, selected, elapsed = infer_frame(model, data['radar'], threshold)
