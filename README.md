@@ -16,16 +16,27 @@ Learn depth from ColoRadar measurements with LiDAR supervision. A learned visibi
 
 ## Start without a dataset
 
-From the repository root, using Python 3:
+The NumPy-only route computes new conversion labels and geometry, without a model,
+viewer, downloaded dataset or GPU:
 
 ```bash
-python radardepth.py --help
+python -m pip install -r requirements-geometry.txt
+python radardepth.py geometry-demo --output /tmp/radardepth-first --distance 2.5
+python radardepth.py geometry-demo --output /tmp/radardepth-changed --distance 3.25
 python -m unittest discover -s tests -v
 ```
 
-These commands use the standard library only. Help lists `train` and `evaluate`; the dispatch test checks arguments, working directories and child exit-code propagation without launching training or inference. This is a useful first check of the entry point, not a depth-estimation demo.
+Each demo writes an original ideal radar/LiDAR fixture, converted radar and depth
+arrays, `geometry.ply`, and a hashed `result.json`. The nearer LiDAR return wins;
+rear points are excluded. The recovered point is compared with an analytic
+spherical-coordinate reference. Use new output directories to preserve prior
+results. **This is synthetic label conversion and geometry, not learned depth
+estimation or a real radar measurement.**
 
-For the previously recorded random-weight CPU network comparison, see [verification](docs/VERIFICATION.md) and the separate [kernel requirements](requirements-kernels.txt). That comparison needs an explicit prior checkout and does not measure trained accuracy.
+[Reproduction contracts and remaining gates](docs/REPRODUCIBILITY.md) distinguish
+this working numerical subset, CPU network training tests, and unavailable trained
+inference. With only NumPy installed, two optional Torch tests are explicitly
+skipped. The separate CPU CI job runs those tests using the actual DRNet3D network.
 
 <a id="set-up"></a>
 
@@ -37,21 +48,21 @@ The full route needs **ColoRadar runs, the matching calibration and model weight
 python -m pip install -r requirements.txt matplotlib
 ```
 
-The retained [dataset guide](docs/REFERENCE.md#dataset) explains the layouts, but its shell launcher currently only lists directories: the conversion commands inside it are commented out. Use the two Python conversion scripts explicitly. From `generate_dataset/`, for one run:
+The retained [dataset guide](docs/REFERENCE.md#dataset) explains the layouts, but its shell launcher currently only lists directories: the conversion commands inside it are commented out. Use the two Python conversion scripts explicitly. From the repository root, for a bounded first run:
 
 ```bash
-python raw_dataset_to_numpy.py -s PATH_TO_COLORADAR/RUN -c PATH_TO_COLORADAR/calib -o PATH_TO_TEMPORARY/run0
-python numpy_to_trainset.py -l PATH_TO_TEMPORARY/run0/raw/lidar -r PATH_TO_TEMPORARY/run0/raw/radar -m ../calib/radarMapping.npz -c ../calib/calibration.npz -o PATH_TO_TRAINING_DATA/run0 -lower 8 -upper 24
+python generate_dataset/raw_dataset_to_numpy.py -s PATH_TO_COLORADAR/RUN -c PATH_TO_COLORADAR/calib -o PATH_TO_TEMPORARY/run0 --max-frames 10
+python radardepth.py convert -l PATH_TO_TEMPORARY/run0/raw/lidar -r PATH_TO_TEMPORARY/run0/raw/radar -m PATH_TO_TEMPORARY/run0/calib/radarMapping.npz -c PATH_TO_TEMPORARY/run0/calib/calibration.npz -o PATH_TO_TRAINING_DATA/run0 --max-frames 10
 ```
 
-Use absolute paths for the `PATH_TO_...` placeholders, and repeat with the appropriate output run names. Training currently selects `run2` and tests on `run0`, `run1` and `run4` in [`train.py`](train.py), so prepare those runs consistently. These are source-derived commands; dataset conversion has not been freshly executed. Return to the repository root for training and evaluation:
+Use absolute paths for the `PATH_TO_...` placeholders, and repeat with the appropriate output run names. Training currently selects `run2` and tests on `run0`, `run1` and `run4` in [`train.py`](train.py), so prepare those runs consistently. Raw ColoRadar ingestion has not been executed on measured data here; the same NumPy conversion and geometry core has been exercised on the ideal fixture above. Use each run's generated calibration rather than assuming the bundled rig matches another capture. Training and evaluation retain the following entry points:
 
 ```bash
 python radardepth.py train -d PATH_TO_TRAINING_DATA -o output -s true
 python radardepth.py evaluate -m MODEL_PATH -c calib/radarMapping.npz -r calib/calibration.npz -d PATH_TO_TRAINING_DATA/run0 -l PATH_TO_TEMPORARY/run0/raw/lidar/
 ```
 
-`-s true` enables the segmentation branch and is required by the retained training parser. `train` forwards to [`train.py`](train.py); `evaluate` forwards to [`eval.py`](eval.py). Evaluation opens a Rerun viewer comparing predicted radar geometry, LiDAR labels and raw LiDAR points. The full stack and trained-data route have not been freshly reproduced by this edition.
+`-s true` enables the segmentation branch and is required by the retained training parser. `train` forwards to [`train.py`](train.py); `evaluate` forwards to [`eval.py`](eval.py). Evaluation opens a Rerun viewer comparing predicted radar geometry, LiDAR labels and raw LiDAR points. The full measured-data and trained-checkpoint route has not been reproduced. The training loop is tested separately with original synthetic tensors; this does not establish learned accuracy.
 
 | To inspect | Open |
 | --- | --- |

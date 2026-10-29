@@ -1,3 +1,10 @@
+## 2026-10-29 reproducible conversion update
+
+The newer [reproducibility record](REPRODUCIBILITY.md) documents the production
+NumPy conversion/projection workflow and CPU DRNet3D training-loop checks. The
+records below remain historical evidence for earlier revisions. They do not claim
+that newly amended source files still match their old current hashes.
+
 # Verification
 
 Executed on 2026-09-22. Python 3.12.13, PyTorch 2.14.0, NumPy 1.26.4 on macOS ARM64.

@@ -1,11 +1,8 @@
 from os import PathLike
 from typing import Callable
 import argparse
-import open3d as o3d
 import numpy as np
 from pathlib import Path
-import matplotlib.pyplot as plt
-from tqdm import tqdm, tqdm_notebook
 
 import torch
 import torch.nn as nn
@@ -39,7 +36,7 @@ def prepare_dataset(path : PathLike, bs : int, split : float, shuffle : bool):
     train_loader = torch.utils.data.DataLoader(
         train_datasets, pin_memory=True, batch_size=bs, shuffle=shuffle, num_workers=4, drop_last=True)
     test_loader = torch.utils.data.DataLoader(
-        test_datasets, pin_memory=True, batch_size=bs, shuffle=shuffle, num_workers=4, drop_last=True)
+        test_datasets, pin_memory=True, batch_size=bs, shuffle=False, num_workers=4, drop_last=False)
 
     return train_loader, test_loader
 
@@ -65,20 +62,24 @@ def train(model : torch.nn.Module, optim : torch.optim.Optimizer, \
     scheduler : torch.optim.lr_scheduler.ReduceLROnPlateau, \
     train_loader : Data.DataLoader, test_loader : Data.DataLoader,\
     device : torch.device, epoch_num : int, criterion : Callable,\
-    output_dir : Path):
+    output_dir : Path, plot: bool = True):
 
     train_loss = np.zeros(epoch_num)
     test_loss = np.zeros(epoch_num)
 
-    for epoch in tqdm(range(epoch_num)):
-        this_train_loss = 0
+    if not len(train_loader) or not len(test_loader):
+        raise ValueError('Training and evaluation loaders must contain at least one batch')
+    for epoch in range(epoch_num):
+        model.train()
+        this_train_loss = 0.0
+        train_samples = 0
         for i, data in enumerate(train_loader):
             inputs = data['radar'].unsqueeze(1).to(device, dtype=torch.float)
             label = data['lidar'].to(device, dtype=torch.float)
             label_mask = data['lidar_mask'].to(device, dtype=torch.float)
 
             # zero the parameter gradients
-            optimizer.zero_grad()
+            optim.zero_grad()
 
             # forward + backward + optimize
             output_dict = model(inputs)
@@ -86,14 +87,17 @@ def train(model : torch.nn.Module, optim : torch.optim.Optimizer, \
             output_label = output_dict['segment_mask']
 
             loss = criterion(output_depth, output_label, label, label_mask)
-            this_train_loss = this_train_loss + loss
+            this_train_loss += loss.detach().item() * inputs.shape[0]
+            train_samples += inputs.shape[0]
             loss.backward()
             optim.step()
 
-        last_train_loss = this_train_loss.item() / len(train_loader)
+        last_train_loss = this_train_loss / train_samples
         train_loss[epoch] = last_train_loss
         
-        this_total_loss = 0
+        this_total_loss = 0.0
+        test_samples = 0
+        model.eval()
         with torch.no_grad():
             for i, data in enumerate(test_loader):
                 inputs = data['radar'].unsqueeze(1).to(device, dtype=torch.float)
@@ -106,10 +110,11 @@ def train(model : torch.nn.Module, optim : torch.optim.Optimizer, \
 
                 loss = criterion(output_depth, output_label, label, label_mask)
 
-                this_total_loss = this_total_loss + loss.cpu().detach().numpy()
-            test_loss[epoch] = this_total_loss / len(test_loader)
+                this_total_loss += loss.item() * inputs.shape[0]
+                test_samples += inputs.shape[0]
+            test_loss[epoch] = this_total_loss / test_samples
 
-        scheduler.step(this_total_loss)
+        scheduler.step(test_loss[epoch])
 
         print(f"Epoch: {epoch}/{epoch_num}, Train Loss: {last_train_loss}, \
             Test Loss: {test_loss[epoch]}")
@@ -117,10 +122,13 @@ def train(model : torch.nn.Module, optim : torch.optim.Optimizer, \
         if epoch % 25 == 0 or (epoch == epoch_num - 1):
             torch.save(model.state_dict(), output_dir.joinpath(f"{epoch}.pth"))
 
-    plt.plot(train_loss, label="Train Loss")
-    plt.plot(test_loss , label="Test Loss")
-    plt.legend()
-    plt.show()
+    if plot:
+        import matplotlib.pyplot as plt
+        plt.plot(train_loss, label="Train Loss")
+        plt.plot(test_loss, label="Test Loss")
+        plt.legend()
+        plt.show()
+    return train_loss, test_loss
     
         
 if __name__ == "__main__":
@@ -132,6 +140,7 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--output', type=str, help='model output directory')
     parser.add_argument('-l', '--saved_model', type=str, default="", help="existing model")
     parser.add_argument('-s', '--segmented', type=str, default="true", help="Do segmentation on output", required=True)
+    parser.add_argument('--no-plot', action='store_true', help='Train without a graphical loss plot')
     args = parser.parse_args()
     args.segmented = args.segmented.lower() == "true"
 
@@ -155,4 +164,4 @@ if __name__ == "__main__":
     scheduler = ReduceLROnPlateau(optimizer, 'min')
 
     train(model, optimizer, scheduler, train_loader, test_loader, device, args.epoch,\
-        loss_fn, output_dir)
+        loss_fn, output_dir, plot=not args.no_plot)

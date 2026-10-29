@@ -4,7 +4,8 @@ from pathlib import Path
 import subprocess
 import sys
 
-COMMANDS = {'train': 'train.py', 'evaluate': 'eval.py'}
+COMMANDS = {'train': 'train.py', 'evaluate': 'eval.py', 'convert': 'generate_dataset/numpy_to_trainset.py',
+            'geometry-demo': 'examples/geometry_demo.py'}
 
 
 def main(argv=None):

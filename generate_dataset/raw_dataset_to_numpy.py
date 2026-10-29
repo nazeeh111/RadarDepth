@@ -3,15 +3,12 @@ import argparse
 import os
 import numpy as np
 from pathlib import Path
-from tqdm import tqdm
 
 import os, sys
-sys.path.append("../")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from utils.pose import se3_logmap
-from utils.ColoRadarDataLoader import CascadeDataLoader
 
-def main(dataLoader : CascadeDataLoader, outputPath : str) -> None:
+def main(dataLoader, outputPath: str, max_frames=None) -> None:
     '''Convert raw dataset to npz and npy format
 
     Parameters
@@ -22,8 +19,12 @@ def main(dataLoader : CascadeDataLoader, outputPath : str) -> None:
         outputPath : output path for the dataset
     '''
     
+    from utils.pose import se3_logmap
+
     # Generate Folders
     datasetRoot = Path(outputPath)
+    if datasetRoot.exists() and any(datasetRoot.iterdir()):
+        raise ValueError('Output must be empty; existing data will not be overwritten')
     lidarRawPath = datasetRoot.joinpath('raw', 'lidar')
     radarRawPath = datasetRoot.joinpath('raw', 'radar')
     datasetRoot.mkdir(parents=True, exist_ok=True)
@@ -59,36 +60,49 @@ def main(dataLoader : CascadeDataLoader, outputPath : str) -> None:
     
     # Get Paths
     seqLength = len(dataLoader.plot_data)
+    if max_frames is not None:
+        if max_frames < 1:
+            raise ValueError('max_frames must be positive')
+        seqLength = min(seqLength, max_frames)
+    lidar_timestamps = np.asarray([row[0] for row in dataLoader.lidar_plot_data])
+    if (not len(lidar_timestamps) or not np.isfinite(lidar_timestamps).all()
+            or not np.all(np.diff(lidar_timestamps) >= 0)):
+        raise ValueError('LiDAR timestamps must be finite, nonempty and ordered')
+    pairings = []
 
     base_pose_log = np.zeros((seqLength, 6))
-    for idx in tqdm(range(seqLength)):
+    for idx in range(seqLength):
 
         # Saving Full 3D Data
         (radar_hm, radarBasePose, radarTs) = dataLoader.radarHM(idx)
+        if not np.isfinite(radarTs):
+            raise ValueError('Radar timestamps must be finite')
 
-        (lidarPts0, lp0, lidarTs0) = dataLoader.lidarPoints((idx + 1) * 2 - 1)
-        (lidarPts1, lp1, lidarTs1) = dataLoader.lidarPoints((idx + 1) * 2)
-        (lidarPts2, lp2, lidarTs2) = dataLoader.lidarPoints((idx + 1) * 2 + 1)
-        lidarPts = [lidarPts0, lidarPts1, lidarPts2]
-
-        lidarTs = np.array([lidarTs0, lidarTs1, lidarTs2])
-        lidarIdx = np.argmin(np.abs(lidarTs - radarTs))
+        # Frame rates and dropped frames vary. Use the complete timestamp index,
+        # not three guessed neighbours around twice the radar index.
+        lidarIdx = int(np.argmin(np.abs(lidar_timestamps - radarTs)))
+        lidarPts, _, lidarTs = dataLoader.lidarPoints(lidarIdx)
+        pairings.append((idx, radarTs, lidarIdx, lidarTs, lidarTs - radarTs))
 
         np.savez(f"{radarRawPath.resolve().as_posix()}/{idx:03d}", intensity = radar_hm[:, :, :, 0], velocity = radar_hm[:, :, :, 1])
-        np.save(f"{lidarRawPath.resolve().as_posix()}/{idx:03d}", lidarPts[lidarIdx])
+        np.save(f"{lidarRawPath.resolve().as_posix()}/{idx:03d}", lidarPts)
 
         base_pose_log[idx, :] = se3_logmap(radarBasePose)
         
     np.savetxt(datasetRoot.joinpath("base_pose"), base_pose_log)
+    np.savetxt(datasetRoot / "frame_pairing.csv", np.asarray(pairings), delimiter=",",
+               header="output_frame,radar_timestamp,lidar_index,lidar_timestamp,delta_seconds", comments="")
 
     return
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Example DBSCAN")
-    parser.add_argument('-s', '--seq', type=str, help='directory of the sequence')
-    parser.add_argument('-c', '--calib', type=str, help='directory of calib data')
-    parser.add_argument('-o', '--outputPath', type=str, default='', help='Output path for dataset generation')
+    parser = argparse.ArgumentParser(description="Convert a ColoRadar sequence using nearest LiDAR timestamps")
+    parser.add_argument('-s', '--seq', type=str, required=True, help='directory of the sequence')
+    parser.add_argument('-c', '--calib', type=str, required=True, help='directory of calib data')
+    parser.add_argument('-o', '--outputPath', type=str, required=True, help='Output path for dataset generation')
+    parser.add_argument('--max-frames', type=int, help='Convert at most N radar frames')
     args = parser.parse_args()
+    from utils.ColoRadarDataLoader import CascadeDataLoader
     dataLoader = CascadeDataLoader(args)
-    main(dataLoader, args.outputPath)
+    main(dataLoader, args.outputPath, args.max_frames)

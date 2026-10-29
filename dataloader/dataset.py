@@ -31,15 +31,17 @@ class Dataset(torch.utils.data.Dataset):
         self.lidar_fnames = sorted(glob.glob(os.path.join(lidar_path,
                                                           '*.npy')))
 
-        assert len(self.radar_fnames) == len(
-            self.lidar_fnames), "Lidar and radar file count unmatch"
+        radar_stems = [Path(name).stem for name in self.radar_fnames]
+        lidar_stems = [Path(name).stem for name in self.lidar_fnames]
+        if not radar_stems or radar_stems != lidar_stems:
+            raise ValueError("Radar and LiDAR must have matching nonempty frame stems")
 
     def __len__(self):
         return len(self.radar_fnames)
 
     def __getitem__(self, index):
-        radar = np.load(os.path.join(self.radar_fnames[index]))
-        lidar = np.load(os.path.join(self.lidar_fnames[index]))
+        radar = np.load(self.radar_fnames[index], allow_pickle=False)
+        lidar = np.load(self.lidar_fnames[index], allow_pickle=False)
 
         lidar_true_mask =  np.expand_dims(lidar < 0.0592944 * 128, axis=0)
         lidar_false_mask = np.expand_dims(lidar > 0.0592944 * 128, axis=0)
