@@ -1,0 +1,2 @@
+# Offline conversion/projection; no model, GPU, viewer or point-cloud runtime.
+numpy>=1.26,<3

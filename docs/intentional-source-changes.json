@@ -2,7 +2,7 @@
   "baseline_revision": "c3830477a81ab8ae9446a23a7978ca6c09f28908",
   "historical_manifest": "docs/source-verification.json",
   "historical_manifest_sha256": "503a2cb0a93d0b97076aa36fd325e2db320ed406cca84a9ccaab898f1ab3f561",
-  "scope": "Intentional helper repairs; historical manifest retains original hashes. All other original paths must remain unchanged. Synthetic helper tests do not reproduce research accuracy.",
+  "scope": "Intentional source repairs, including the earlier helper repairs; historical manifest remains unchanged. All other pinned original paths must remain unchanged. Synthetic checks do not reproduce trained research accuracy.",
   "modified_paths": {
     "utils/velocity.py": {
       "original_sha256": "386cbf7dff26ab96bd7da89c9fce83ba09de142667a0f3c317e62ba1934a7391",
@@ -13,6 +13,46 @@
       "original_sha256": "f955f4642dcc2c251e3285ea4e5323c0c587c35871e5dfc65d62026e52cd0d1b",
       "current_sha256": "91e763583af2171bdce9e7bb9dcd4b755153ffd96c2906a0e5531232f21f2cc0",
       "intent": "Normalize finite intensities by max-minus-min; map constant arrays to the lower palette endpoint."
+    },
+    "dataloader/dataset.py": {
+      "original_sha256": "ef141178a09e750cdbf731f008bc002e1d73133c2670bbbd354f4ac43995962c",
+      "current_sha256": "765078251344eed1893340c4216195365a290f245e32a8cfeda16ecbe614952f",
+      "intent": "Reject equal-count mismatched or empty paired frames; disable pickle; make valid/invalid masks complementary using finite positive in-range depth labels."
+    },
+    "generate_dataset/numpy_to_trainset.py": {
+      "original_sha256": "0f0ae0980453acf4344a77fc80c79a144e839a1e930847fbff3c6155ace91a73",
+      "current_sha256": "f6e102005444eb467a20b8c184104c2f23213caf92022a03fbfba1fa39e6037f",
+      "intent": "NumPy-only bounded deterministic conversion, paired stems, network elevation slice and existing-output protection."
+    },
+    "generate_dataset/raw_dataset_to_numpy.py": {
+      "original_sha256": "251828d1065d98c75f1c3d98931fb5842d95abb1559a19f9312e74667451c9d0",
+      "current_sha256": "c67d1df26ea35986a0567af5daf99359f88db4c69f61990b7465e59ebfeec7f4",
+      "intent": "Source-relative import, bounded nearest-timestamp pairing with recorded offsets and output preservation."
+    },
+    "utils/__init__.py": {
+      "original_sha256": "5c4e9800976311f2f6b7c4d55a5c37e678c409e5c1c832458dbdca8017902214",
+      "current_sha256": "99970de5019e33575a49d887b0a36ce6b435d1bf9d40b4dffa0fac141eef1a1f",
+      "intent": "Load optional ColoRadar tools lazily while retaining named re-exports."
+    },
+    "utils/pairing.py": {
+      "original_sha256": "a8767620ab997e245f0b2089c561f461529f852eb4a5d772f917bebf17b636e7",
+      "current_sha256": "25e7d521a9f00f2b04456bd1e95dc1a46e72b964429ff29f59a1fdfcb59ac0e4",
+      "intent": "Reject out-of-FOV returns, use nearest visible radius per pixel and accept NumPy arrays independently of Open3D."
+    },
+    "train.py": {
+      "original_sha256": "be6595d74115e1700d993978909d1c25a76f1393f5ddfe6040bd4316b2cefe45",
+      "current_sha256": "47aedf778251dbad9195c93e0c14538c72a0f660ed5f9765764c950a3de1e9c8",
+      "intent": "Use supplied optimizer; isolate train/eval modes, sample-weight metrics, keep evaluation remainder and support headless loss plotting. Parse explicit CUDA false correctly without changing default or automatic hardware fallback."
+    },
+    "eval.py": {
+      "original_sha256": "5d2fcc756b5dd8f39fe67b75456ef157eee5e48b251f1e12d7a6a9204f6ef540",
+      "current_sha256": "225a6b28ac3c826efb14904e0b0996fb64d73ec0150f2fb61474115639176143",
+      "intent": "Headless safe state_dict CPU evaluation, explicit optional viewer, paired raw frames, saved arrays/PLY and unmasked error metrics; preserve original two-class Softmax."
+    },
+    "networks/DepthRefinement/network_parts.py": {
+      "original_sha256": "06aa38c29c7eb25293e312e3d131a508bec4fea9a4d94e139c4966274fb1f054",
+      "current_sha256": "d19bc221adf6b89d1535b1c285550ab0832f8357b583305a24663da474e6bf49",
+      "intent": "Reject invalid depth labels and return differentiable zero when no valid depth observation exists, avoiding NaN without changing network architecture."
     }
   }
 }

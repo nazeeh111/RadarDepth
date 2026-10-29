@@ -1,10 +1,8 @@
 import argparse
 from typing import Tuple
-import open3d as o3d
 import numpy as np
 from copy import deepcopy
 
-import matplotlib.pyplot as plt
 RADAR_ELEVATION_RANGE = (8, 24)
 
 def gen_mid_points(num_sample : int) -> Tuple[np.ndarray]:
@@ -80,60 +78,65 @@ def lidar2radar_dense(calib_fname, T_rl, lidar) -> np.ndarray:
     return lidar_in_r.T[np.bitwise_and(azi_mask, ele_mask)]
 
 def lidar2radar(calib_fname, T_rl, lidar, elev_range=RADAR_ELEVATION_RANGE, **kwargs) -> np.ndarray:
-    debug_info = kwargs.pop('debug', False)
-    debug_plot = kwargs.pop('plot', False)
+    """Project LiDAR xyz metres into radar angular bins (angles in radians).
 
-    calib_data = np.load(calib_fname)
-    range_unit = calib_data['range_bin_width']
-
-    azimuth_lut = np.rad2deg(calib_data['azimuth_bins'].reshape((1, -1)))
-    elevation_lut = np.rad2deg(calib_data['elevation_bins'].reshape(
-        (-1, 1))[elev_range[0]:elev_range[1]])
-
-    if debug_info:
-        print(azimuth_lut)
-        print(elevation_lut)
-
-    azimuth_length = len(azimuth_lut[0, :])
-    elevation_length = len(elevation_lut)
-
-    lidar_in_r = lidar.point['positions'].clone().numpy()
-    radius = np.linalg.norm(lidar_in_r, axis=1)
-    lidar_in_r = lidar_in_r[radius > 0]
-    radius = radius[radius > 0]
-
-    lidar_in_r = T_rl[:3, :3] @ lidar_in_r.T + T_rl[:3, 3:]
-    radius = np.linalg.norm(lidar_in_r, axis=0)
-    azimuth = np.rad2deg(np.arctan2(lidar_in_r[1], lidar_in_r[0]))
-    elevation = np.rad2deg(np.arcsin(lidar_in_r[2] / radius))
-
-    # No vectorization, stupid enumeration now
-    azimuth_lut_expanded = np.tile(azimuth_lut, (len(azimuth), 1))
-    azimuth_expanded = np.tile(np.expand_dims(azimuth, axis=1), (1, azimuth_length))
-
-    azimuth_ind = np.argmin(np.abs(azimuth_lut - azimuth_expanded), axis=1)
-
-    elevation_lut_expanded = np.tile(elevation_lut, (1, len(elevation)))
-    elevation_expanded = np.tile(np.expand_dims(elevation, axis=0), (elevation_length, 1))
-
-    azimuth_ind = np.argmin(np.abs(azimuth_lut_expanded - azimuth_expanded),
-                            axis=1)
-    elevation_ind = np.argmin(np.abs(elevation_lut_expanded -
-                                     elevation_expanded),
-                              axis=0)
-
-    depth_map = np.zeros((len(elevation_lut), azimuth_length))
-    depth_map[elevation_ind, azimuth_ind] = radius
-
-    depth_map[np.isclose(depth_map, 0)] = 10
-
-    if debug_plot:
+    T_rl maps LiDAR to radar: p_r = R_rl @ p_l + t_rl. Accept an Nx3+
+    array or an Open3D tensor point cloud. Nearest visible return wins; points
+    outside the selected bin-centre field of view are excluded. Empty cells
+    retain the legacy 10 m sentinel used by the training mask.
+    """
+    if hasattr(lidar, 'point'):
+        points = lidar.point['positions'].numpy()
+    else:
+        points = np.asarray(lidar)
+    if points.ndim != 2 or points.shape[1] < 3:
+        raise ValueError("LiDAR points must have shape (N, 3+) in metres")
+    transform = np.asarray(T_rl, dtype=float)
+    if (transform.shape != (4, 4) or not np.isfinite(transform).all()
+            or not np.allclose(transform[3], [0, 0, 0, 1])):
+        raise ValueError("T_rl must be a finite homogeneous 4x4 transform")
+    with np.load(calib_fname, allow_pickle=False) as calib:
+        azimuth_bins = np.asarray(calib['azimuth_bins'], dtype=float).ravel()
+        all_elevations = np.asarray(calib['elevation_bins'], dtype=float).ravel()
+    lower, upper = elev_range
+    if not 0 <= lower < upper <= len(all_elevations):
+        raise ValueError("Elevation slice must be nonempty and within calibration")
+    elevation_bins = all_elevations[lower:upper]
+    for name, bins in [('azimuth', azimuth_bins), ('elevation', elevation_bins)]:
+        if (not len(bins) or not np.isfinite(bins).all()
+                or (len(bins) > 1 and not (np.all(np.diff(bins) > 0)
+                                         or np.all(np.diff(bins) < 0)))):
+            raise ValueError(f"{name} bins must be finite and strictly monotonic")
+    points = np.asarray(points[:, :3], dtype=float)
+    points = points[np.isfinite(points).all(axis=1)]
+    points = points @ transform[:3, :3].T + transform[:3, 3]
+    radius = np.linalg.norm(points, axis=1)
+    valid = radius > 0
+    points, radius = points[valid], radius[valid]
+    azimuth = np.arctan2(points[:, 1], points[:, 0])
+    elevation = np.arctan2(points[:, 2], np.hypot(points[:, 0], points[:, 1]))
+    visible = ((azimuth >= azimuth_bins.min()) & (azimuth <= azimuth_bins.max())
+               & (elevation >= elevation_bins.min()) & (elevation <= elevation_bins.max()))
+    azimuth, elevation, radius = azimuth[visible], elevation[visible], radius[visible]
+    # Process one angular axis at a time instead of materializing N x E x A.
+    azimuth_ind = np.abs(azimuth[:, None] - azimuth_bins).argmin(axis=1)
+    elevation_ind = np.abs(elevation[:, None] - elevation_bins).argmin(axis=1)
+    depth_map = np.full((len(elevation_bins), len(azimuth_bins)), np.inf)
+    np.minimum.at(depth_map, (elevation_ind, azimuth_ind), radius)
+    depth_map[~np.isfinite(depth_map)] = 10.0
+    if kwargs.get('debug', False):
+        print(azimuth_bins, elevation_bins)
+    if kwargs.get('plot', False):
+        import matplotlib.pyplot as plt
         plt.imshow(depth_map)
         plt.show()
-
     return depth_map
 
 if __name__ == '__main__':
+    import open3d as o3d
+    import open3d.core as o3c
+    from utils.radar import load_radar_calib, load_radar_as_pcd, colorize
+    from utils.lidar import load_lidar_as_pcd
     parser = argparse.ArgumentParser()
     parser.add_argument('--lidar_npy')
     parser.add_argument('--radar_npz')

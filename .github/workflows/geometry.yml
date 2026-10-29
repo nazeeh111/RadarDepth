@@ -1,0 +1,28 @@
+name: CPU geometry and conversion
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  geometry:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements-geometry.txt
+      - run: python -m unittest discover -s tests -v
+      - run: python examples/geometry_demo.py --output /tmp/radardepth-first --distance 2.5
+      - run: python examples/geometry_demo.py --output /tmp/radardepth-changed --distance 3.25
+  cpu-network-loop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements-geometry.txt
+      - run: python -m pip install torch==2.15.0 --index-url https://download.pytorch.org/whl/cpu
+      - run: python -c 'import torch; print(torch.__version__)'
+      - run: python -m unittest discover -s tests -p test_training_loop.py -v
+      - run: python -m unittest discover -s tests -p test_evaluation.py -v

@@ -1,80 +1,108 @@
+"""Convert matched raw radar/LiDAR NumPy frames using only NumPy."""
 import argparse
-from copy import deepcopy
-import open3d as o3d
-import numpy as np
+import json
 from pathlib import Path
-from tqdm import tqdm
-from PIL import Image
+import sys
 
-import os, sys
-sys.path.append("../")
+import numpy as np
 
-from utils.lidar import load_lidar_as_pcd
-from utils.pairing import lidar2radar
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from utils.pairing import lidar2radar, RADAR_ELEVATION_RANGE
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Generate Lidar projected to radar dataset")
-    parser.add_argument('-l', '--lidar_sequence', type=str, help='directory of lidar sequence')
-    parser.add_argument('-r', '--radar_sequence', type=str, help='directory of radar sequence')
-    parser.add_argument('-m', '--radar_calib_npz', type=str, help='npz of radar data')
-    parser.add_argument('-c', '--rig_calib_npz', type=str, help='npz of rig calib')
-    parser.add_argument('-o', '--output', type=str, help="output directory of data")
-    parser.add_argument('-i', '--image_gen', type=bool, default=False, help="Generate to image for visualization")
-    parser.add_argument('-lower', '--lower_range', type=int, default=11, help='Lower range on radar elevation range')
-    parser.add_argument('-upper', '--upper_range', type=int, default=21, help='Upper range on radar elevation range')
 
-    args = parser.parse_args()
+def convert(lidar_path, radar_path, radar_calib, rig_calib, output,
+            elev_range=RADAR_ELEVATION_RANGE, max_frames=None, image_gen=False):
+    lidar_path, radar_path, output = map(Path, (lidar_path, radar_path, output))
+    if max_frames is not None and max_frames < 1:
+        raise ValueError("max_frames must be positive")
+    if not lidar_path.is_dir() or not radar_path.is_dir():
+        raise ValueError("LiDAR and radar input directories must exist")
+    radar_files = {p.stem: p for p in radar_path.glob('*.npz')}
+    lidar_files = {p.stem: p for p in lidar_path.glob('*.npy')}
+    if not radar_files or radar_files.keys() != lidar_files.keys():
+        raise ValueError("Radar and LiDAR must have matching nonempty frame stems")
+    stems = sorted(radar_files)
+    if any(not stem.isdecimal() for stem in stems):
+        raise ValueError("Frame stems must be decimal integers")
+    stems.sort(key=int)
+    output_stems = [f'{int(stem):05d}' for stem in stems]
+    if len(set(output_stems)) != len(output_stems):
+        raise ValueError("Frame stems map to duplicate numeric output names")
+    if output.exists() and any(output.iterdir()):
+        raise ValueError("Output directory must be empty; existing data will not be overwritten")
+    with np.load(rig_calib, allow_pickle=False) as calib:
+        T_rl = np.linalg.inv(calib['T_br']) @ calib['T_bl']
+    with np.load(radar_calib, allow_pickle=False) as calib:
+        expected_angles = (len(calib['elevation_bins']), len(calib['azimuth_bins']))
+    lower, upper = elev_range
+    if not 0 <= lower < upper <= expected_angles[0]:
+        raise ValueError("Elevation slice is outside calibration")
+    output.mkdir(parents=True, exist_ok=True)
+    (output / 'radar').mkdir(exist_ok=True)
+    (output / 'lidar').mkdir(exist_ok=True)
+    records = []
+    for stem in stems[:max_frames]:
+        with np.load(radar_files[stem], allow_pickle=False) as radar:
+            intensity, velocity = radar['intensity'], radar['velocity']
+            if (intensity.ndim != 3 or intensity.shape != velocity.shape
+                    or intensity.shape[:2] != expected_angles
+                    or not np.isfinite(intensity).all() or not np.isfinite(velocity).all()):
+                raise ValueError(f"Invalid radar frame {stem}: expected finite (elevation, azimuth, range) arrays")
+            intensity = intensity[lower:upper].transpose(2, 0, 1)
+            velocity = velocity[lower:upper].transpose(2, 0, 1)
+        lidar = np.load(lidar_files[stem], allow_pickle=False)
+        depth = lidar2radar(radar_calib, T_rl, lidar, elev_range=elev_range)
+        name = f'{int(stem):05d}'
+        np.savez(output / 'radar' / f'{name}.npz', intensity=intensity, velocity=velocity)
+        np.save(output / 'lidar' / f'{name}.npy', depth)
+        if image_gen:
+            from PIL import Image
+            (output / 'img').mkdir(exist_ok=True)
+            span = np.ptp(depth)
+            normalized = (depth - depth.min()) / span if span else np.zeros_like(depth)
+            Image.fromarray((normalized * 255).astype(np.uint8)).save(output / 'img' / f'{name}.jpg')
+        records.append({'input_stem': stem, 'output_stem': name})
+    manifest = {'frames': records, 'elevation_range': list(elev_range),
+                'radar_axes': ['range', 'elevation', 'azimuth'], 'depth_units': 'metres',
+                'missing_depth_m': 10.0, 'T_rl': T_rl.tolist(),
+                'radar_calibration': str(Path(radar_calib).resolve()),
+                'rig_calibration': str(Path(rig_calib).resolve())}
+    (output / 'conversion.json').write_text(json.dumps(manifest, indent=2) + '\n')
+    return manifest
 
-    calib = np.load(args.rig_calib_npz)
-    T_bl = o3d.core.Tensor(calib['T_bl'], dtype=o3d.core.Dtype.Float32)
-    T_br = o3d.core.Tensor(calib['T_br'], dtype=o3d.core.Dtype.Float32)
 
-    # Lidar to radar
-    T_rl = T_br.inv() @ T_bl
-    elevation_range = (args.lower_range, args.upper_range)
+def boolean_flag(value):
+    if isinstance(value, bool):
+        return value
+    if value.lower() in ('true', '1'):
+        return True
+    if value.lower() in ('false', '0'):
+        return False
+    raise argparse.ArgumentTypeError('expected true or false')
 
-    lidar_path = Path(args.lidar_sequence)
-    assert lidar_path.exists() and lidar_path.is_dir(), \
-        "Lidar Directory doesn't exists or not a directory"
-    radar_path = Path(args.radar_sequence)
-    assert radar_path.exists() and radar_path.is_dir(), \
-        "Radar Directory doesn't exists or not a directory"
 
-    output_path = Path(args.output)
-    output_path.mkdir(exist_ok=True, parents=True)
-    output_path.joinpath('radar').mkdir(exist_ok=True)
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('-l', '--lidar_sequence', required=True)
+    parser.add_argument('-r', '--radar_sequence', required=True)
+    parser.add_argument('-m', '--radar_calib_npz', required=True)
+    parser.add_argument('-c', '--rig_calib_npz', required=True)
+    parser.add_argument('-o', '--output', required=True)
+    parser.add_argument('-i', '--image_gen', nargs='?', const=True, default=False,
+                        type=boolean_flag, help='Save JPEGs (requires Pillow); optional true/false')
+    parser.add_argument('-lower', '--lower_range', type=int, default=8)
+    parser.add_argument('-upper', '--upper_range', type=int, default=24)
+    parser.add_argument('--max-frames', type=int, help='Bound the conversion to the first N matched frames')
+    args = parser.parse_args(argv)
+    try:
+        result = convert(args.lidar_sequence, args.radar_sequence, args.radar_calib_npz,
+                         args.rig_calib_npz, args.output, (args.lower_range, args.upper_range),
+                         args.max_frames, args.image_gen)
+    except (ValueError, OSError, KeyError) as error:
+        parser.exit(2, f'Conversion failed: {error}\n')
+    print(json.dumps({'converted_frames': len(result['frames']), 'output': args.output}))
+    return 0
 
-    lidar_str = 'lidar'
-    output_path.joinpath(lidar_str).mkdir(exist_ok=True)
 
-    if args.image_gen:
-        img_output = deepcopy(output_path)
-        img_output = output_path.joinpath("img")
-        img_output.mkdir(exist_ok=True)
-
-    existing_data_num = 0
-    
-    for files in tqdm(os.listdir(radar_path)):
-        files_pathobj = radar_path.joinpath(files)
-        radar = np.load(files_pathobj)
-        f_intensity = radar['intensity'][elevation_range[0]:elevation_range[1], :, :]
-        f_intensity = np.transpose(f_intensity, (2, 0, 1))
-        vel = radar['velocity'][elevation_range[0]:elevation_range[1], :, :]
-        vel = np.transpose(vel, (2, 0, 1))
-
-        radar_output_path = output_path.joinpath(f"radar/{existing_data_num + int(files[:-4]):05}")
-        np.savez(radar_output_path.resolve().as_posix(),\
-            intensity=f_intensity, velocity=vel)
-
-    for files in tqdm(os.listdir(lidar_path)):
-        files_pathobj = lidar_path.joinpath(files)
-        lidar = load_lidar_as_pcd(files_pathobj)
-        lidar_img = lidar2radar(args.radar_calib_npz, T_rl.numpy(), lidar, elev_range=elevation_range)
-
-        lidar_output_path = output_path.joinpath(f"{lidar_str}/{existing_data_num + int(files[:-4]):05}")
-        np.save(lidar_output_path.resolve().as_posix(), lidar_img)
-
-        if args.image_gen:
-            I8 = (((lidar_img - lidar_img.min()) / (lidar_img.max() - lidar_img.min())) * 255.9).astype(np.uint8)
-            img = Image.fromarray(I8)
-            img.save(img_output.joinpath(files[:-4] + ".jpg").resolve().as_posix())
+if __name__ == '__main__':
+    raise SystemExit(main())
